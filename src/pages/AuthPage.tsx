@@ -4,6 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// Add these types at the top of the file
+declare global {
+  interface Window {
+    authToken?: string;
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void;
+    };
+  }
+}
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -38,6 +48,8 @@ const AuthPage = () => {
       console.log('[AuthPage] Received injected token for auto-login:', storedToken);
       if (isLoggingOut) {
         console.log('[AuthPage] Skipping auto-login due to logout in progress');
+        // Always navigate to login page if logging out
+        navigate('/', { replace: true });
         return;
       }
       if (storedToken && !isLoggedIn) {
@@ -73,6 +85,9 @@ const AuthPage = () => {
     if (isLoggedIn && !isLoggingOut) {
       console.log('[AuthPage] isLoggedIn is true, ensuring navigation to /dashboard');
       navigate('/dashboard', { replace: true });
+    } else if (!isLoggedIn && !isLoggingOut) {
+      // If not logged in and not logging out, ensure on login page
+      navigate('/', { replace: true });
     }
   }, [isLoggedIn, navigate, isLoggingOut]);
 
