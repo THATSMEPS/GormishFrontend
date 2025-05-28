@@ -16,14 +16,17 @@ const AuthPage = () => {
     const saved = localStorage.getItem('authToken');
     return saved ? JSON.parse(saved) : null;
   });
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // Track logout state
   const navigate = useNavigate();
 
   // Persist state to localStorage
   useEffect(() => {
-    localStorage.setItem('isLoggedIn', JSON.stringify(isLoggedIn));
-    localStorage.setItem('authToken', JSON.stringify(token));
-    console.log('[AuthPage] Persisted state to localStorage:', { isLoggedIn, token });
-  }, [isLoggedIn, token]);
+    if (!isLoggingOut) {
+      localStorage.setItem('isLoggedIn', JSON.stringify(isLoggedIn));
+      localStorage.setItem('authToken', JSON.stringify(token));
+      console.log('[AuthPage] Persisted state to localStorage:', { isLoggedIn, token });
+    }
+  }, [isLoggedIn, token, isLoggingOut]);
 
   // Handle auto-login with injected token
   useEffect(() => {
@@ -33,6 +36,10 @@ const AuthPage = () => {
       console.log('[AuthPage] handleAuthToken called');
       const storedToken = window.authToken;
       console.log('[AuthPage] Received injected token for auto-login:', storedToken);
+      if (isLoggingOut) {
+        console.log('[AuthPage] Skipping auto-login due to logout in progress');
+        return;
+      }
       if (storedToken && !isLoggedIn) {
         setToken(storedToken);
         setIsLoggedIn(true);
@@ -58,16 +65,16 @@ const AuthPage = () => {
       console.log('[AuthPage] Cleaning up');
       window.removeEventListener('authTokenReady', handleAuthToken);
     };
-  }, [navigate, isLoggedIn]);
+  }, [navigate, isLoggedIn, isLoggingOut]);
 
-  // Ensure navigation to dashboard if already logged in
+  // Ensure navigation to dashboard if already logged in, but not during logout
   useEffect(() => {
     console.log('[AuthPage] isLoggedIn state updated:', isLoggedIn);
-    if (isLoggedIn) {
+    if (isLoggedIn && !isLoggingOut) {
       console.log('[AuthPage] isLoggedIn is true, ensuring navigation to /dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, navigate, isLoggingOut]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,16 +121,23 @@ const AuthPage = () => {
   };
 
   const handleLogout = () => {
+    // Set logout state to prevent auto-login
+    setIsLoggingOut(true);
+
     // Clear local state
     setToken(null);
     setIsLoggedIn(false);
     setEmail('');
     setPassword('');
 
-    // Clear localStorage to terminate the session fully
+    // Clear localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('authToken');
     console.log('[AuthPage] Cleared localStorage entries for session termination');
+
+    // Clear window.authToken to prevent auto-login after WebView reload
+    window.authToken = undefined;
+    console.log('[AuthPage] Cleared window.authToken to prevent auto-login');
 
     // Send LOGOUT message to native app
     console.log('[AuthPage] Sending LOGOUT message to native app');
@@ -135,7 +149,7 @@ const AuthPage = () => {
     navigate('/', { replace: true });
   };
 
-  console.log('[AuthPage] Rendering with isLoggedIn:', isLoggedIn, 'token:', token);
+  console.log('[AuthPage] Rendering with isLoggedIn:', isLoggedIn, 'token:', token, 'isLoggingOut:', isLoggingOut);
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       <div className="h-64 md:h-auto md:w-1/2 relative overflow-hidden">
