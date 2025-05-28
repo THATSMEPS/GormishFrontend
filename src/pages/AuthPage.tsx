@@ -17,16 +17,23 @@ const AuthPage = () => {
     const handleAuthToken = () => {
       // @ts-ignore
       const storedToken = window.authToken;
+      console.log('[AuthPage] Received injected token for auto-login:', storedToken); // Debug log
       if (storedToken) {
         setToken(storedToken);
         setIsLoggedIn(true);
         toast.success('Auto-logged in successfully!');
-        navigate('/dashboard'); // Navigate to dashboard on auto-login
+        navigate('/dashboard');
+      } else {
+        console.log('[AuthPage] No token found for auto-login');
       }
     };
 
+    console.log('[AuthPage] Adding event listener for authTokenReady');
     window.addEventListener('authTokenReady', handleAuthToken);
-    return () => window.removeEventListener('authTokenReady', handleAuthToken);
+    return () => {
+      console.log('[AuthPage] Removing event listener for authTokenReady');
+      window.removeEventListener('authTokenReady', handleAuthToken);
+    };
   }, [navigate]);
 
   // Handle login with email and password
@@ -34,15 +41,18 @@ const AuthPage = () => {
     e.preventDefault();
     if (!email || !password) {
       toast.error('Please enter both email and password');
+      console.log('[AuthPage] Login failed: Email or password missing');
       return;
     }
 
     // Simulate token generation (replace with actual API call in production)
-    const newToken = 'example-token-' + email; // Simulated token
+    const newToken = 'example-token-' + email;
+    console.log('[AuthPage] Generated token for login:', newToken); // Debug log
     setToken(newToken);
     setIsLoggedIn(true);
 
     // Send the token to the native app via postMessage
+    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken); // Debug log
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGIN', token: newToken })
     );
@@ -56,15 +66,18 @@ const AuthPage = () => {
     e.preventDefault();
     if (!email || !password) {
       toast.error('Please enter both email and password');
+      console.log('[AuthPage] Signup failed: Email or password missing');
       return;
     }
 
     // Simulate token generation (replace with actual API call in production)
-    const newToken = 'example-token-' + email; // Simulated token
+    const newToken = 'example-token-' + email;
+    console.log('[AuthPage] Generated token for signup:', newToken); // Debug log
     setToken(newToken);
     setIsLoggedIn(true);
 
     // Send the token to the native app via postMessage
+    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken); // Debug log
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGIN', token: newToken })
     );
@@ -81,6 +94,7 @@ const AuthPage = () => {
     setPassword('');
 
     // Clear the token in the native app
+    console.log('[AuthPage] Sending LOGOUT message to native app'); // Debug log
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGOUT' })
     );
