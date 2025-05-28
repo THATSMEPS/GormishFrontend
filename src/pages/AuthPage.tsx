@@ -82,12 +82,14 @@ const AuthPage = () => {
   // Ensure navigation to dashboard if already logged in, but not during logout
   useEffect(() => {
     console.log('[AuthPage] isLoggedIn state updated:', isLoggedIn);
-    if (isLoggedIn && !isLoggingOut) {
+    if (isLoggingOut) {
+      // Always go to login page if logging out
+      navigate('/', { replace: true });
+      return;
+    }
+    if (isLoggedIn) {
       console.log('[AuthPage] isLoggedIn is true, ensuring navigation to /dashboard');
       navigate('/dashboard', { replace: true });
-    } else if (!isLoggedIn && !isLoggingOut) {
-      // If not logged in and not logging out, ensure on login page
-      navigate('/', { replace: true });
     }
   }, [isLoggedIn, navigate, isLoggingOut]);
 
