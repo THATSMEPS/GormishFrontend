@@ -8,33 +8,69 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    // Initialize from localStorage to persist across reloads
+    const saved = localStorage.getItem('isLoggedIn');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    const saved = localStorage.getItem('authToken');
+    return saved ? JSON.parse(saved) : null;
+  });
   const navigate = useNavigate();
 
-  // Listen for injected token from the native app to auto-login
+  // Persist state to localStorage
   useEffect(() => {
+    localStorage.setItem('isLoggedIn', JSON.stringify(isLoggedIn));
+    localStorage.setItem('authToken', JSON.stringify(token));
+    console.log('[AuthPage] Persisted state to localStorage:', { isLoggedIn, token });
+  }, [isLoggedIn, token]);
+
+  // Handle auto-login with injected token
+  useEffect(() => {
+    console.log('[AuthPage] Component mounted');
+
     const handleAuthToken = () => {
-      // @ts-ignore
+      console.log('[AuthPage] handleAuthToken called');
       const storedToken = window.authToken;
-      console.log('[AuthPage] Received injected token for auto-login:', storedToken); // Debug log
-      if (storedToken) {
+      console.log('[AuthPage] Received injected token for auto-login:', storedToken);
+      if (storedToken && !isLoggedIn) {
         setToken(storedToken);
         setIsLoggedIn(true);
         toast.success('Auto-logged in successfully!');
-        navigate('/dashboard');
-      } else {
+        console.log('[AuthPage] Navigating to /dashboard from handleAuthToken');
+        navigate('/dashboard', { replace: true });
+      } else if (!storedToken) {
         console.log('[AuthPage] No token found for auto-login');
+      } else {
+        console.log('[AuthPage] Already logged in, skipping auto-login');
       }
     };
 
+    // Fallback: Check for token immediately on mount
+    if (window.authToken) {
+      console.log('[AuthPage] Token found on mount:', window.authToken);
+      handleAuthToken();
+    }
+
+    // Add event listener for authTokenReady
     console.log('[AuthPage] Adding event listener for authTokenReady');
     window.addEventListener('authTokenReady', handleAuthToken);
+
     return () => {
-      console.log('[AuthPage] Removing event listener for authTokenReady');
+      console.log('[AuthPage] Cleaning up');
       window.removeEventListener('authTokenReady', handleAuthToken);
     };
-  }, [navigate]);
+  }, [navigate, isLoggedIn]);
+
+  // Ensure navigation to dashboard if already logged in
+  useEffect(() => {
+    console.log('[AuthPage] isLoggedIn state updated:', isLoggedIn);
+    if (isLoggedIn) {
+      console.log('[AuthPage] isLoggedIn is true, ensuring navigation to /dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   // Handle login with email and password
   const handleLogin = (e: React.FormEvent) => {
@@ -45,20 +81,18 @@ const AuthPage = () => {
       return;
     }
 
-    // Simulate token generation (replace with actual API call in production)
     const newToken = 'example-token-' + email;
-    console.log('[AuthPage] Generated token for login:', newToken); // Debug log
+    console.log('[AuthPage] Generated token for login:', newToken);
     setToken(newToken);
     setIsLoggedIn(true);
 
-    // Send the token to the native app via postMessage
-    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken); // Debug log
+    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken);
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGIN', token: newToken })
     );
 
     toast.success('Logged in successfully!');
-    navigate('/dashboard');
+    navigate('/dashboard', { replace: true });
   };
 
   // Handle signup with email and password
@@ -70,20 +104,18 @@ const AuthPage = () => {
       return;
     }
 
-    // Simulate token generation (replace with actual API call in production)
     const newToken = 'example-token-' + email;
-    console.log('[AuthPage] Generated token for signup:', newToken); // Debug log
+    console.log('[AuthPage] Generated token for signup:', newToken);
     setToken(newToken);
     setIsLoggedIn(true);
 
-    // Send the token to the native app via postMessage
-    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken); // Debug log
+    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken);
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGIN', token: newToken })
     );
 
     toast.success('Signed up successfully!');
-    navigate('/dashboard');
+    navigate('/dashboard', { replace: true });
   };
 
   // Handle logout
@@ -93,19 +125,18 @@ const AuthPage = () => {
     setEmail('');
     setPassword('');
 
-    // Clear the token in the native app
-    console.log('[AuthPage] Sending LOGOUT message to native app'); // Debug log
+    console.log('[AuthPage] Sending LOGOUT message to native app');
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGOUT' })
     );
 
     toast.success('Logged out successfully!');
-    navigate('/');
+    navigate('/', { replace: true });
   };
 
+  console.log('[AuthPage] Rendering with isLoggedIn:', isLoggedIn, 'token:', token);
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
-      {/* Left Side - Image & Content */}
       <div className="h-64 md:h-auto md:w-1/2 relative overflow-hidden">
         <motion.div
           initial={{ scale: 1.1 }}
@@ -139,7 +170,6 @@ const AuthPage = () => {
         </div>
       </div>
 
-      {/* Right Side - Auth Form */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-8 lg:p-12">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
