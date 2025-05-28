@@ -9,7 +9,6 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    // Initialize from localStorage to persist across reloads
     const saved = localStorage.getItem('isLoggedIn');
     return saved ? JSON.parse(saved) : false;
   });
@@ -47,13 +46,11 @@ const AuthPage = () => {
       }
     };
 
-    // Fallback: Check for token immediately on mount
     if (window.authToken) {
       console.log('[AuthPage] Token found on mount:', window.authToken);
       handleAuthToken();
     }
 
-    // Add event listener for authTokenReady
     console.log('[AuthPage] Adding event listener for authTokenReady');
     window.addEventListener('authTokenReady', handleAuthToken);
 
@@ -72,7 +69,6 @@ const AuthPage = () => {
     }
   }, [isLoggedIn, navigate]);
 
-  // Handle login with email and password
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -95,7 +91,6 @@ const AuthPage = () => {
     navigate('/dashboard', { replace: true });
   };
 
-  // Handle signup with email and password
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -118,13 +113,19 @@ const AuthPage = () => {
     navigate('/dashboard', { replace: true });
   };
 
-  // Handle logout
   const handleLogout = () => {
+    // Clear local state
     setToken(null);
     setIsLoggedIn(false);
     setEmail('');
     setPassword('');
 
+    // Clear localStorage to terminate the session fully
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('authToken');
+    console.log('[AuthPage] Cleared localStorage entries for session termination');
+
+    // Send LOGOUT message to native app
     console.log('[AuthPage] Sending LOGOUT message to native app');
     window.ReactNativeWebView?.postMessage(
       JSON.stringify({ type: 'LOGOUT' })
