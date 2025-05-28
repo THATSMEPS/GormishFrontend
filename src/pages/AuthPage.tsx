@@ -1,171 +1,92 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Mail, Store, MapPin, Clock, Image as ImageIcon, ChevronDown, Lock, ArrowRight, User, Check, Sun, Moon } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import Select from 'react-select';
-
-// Custom styles for react-select
-const selectStyles = {
-  control: (base: any) => ({
-    ...base,
-    minHeight: '42px',
-    backgroundColor: 'white',
-    borderColor: '#E5E7EB',
-    '&:hover': {
-      borderColor: '#6552FF',
-    },
-    boxShadow: 'none',
-    '&:focus-within': {
-      borderColor: '#6552FF',
-      boxShadow: '0 0 0 2px rgba(101, 82, 255, 0.1)',
-    },
-  }),
-  option: (base: any, state: any) => ({
-    ...base,
-    backgroundColor: state.isSelected ? '#6552FF' : state.isFocused ? '#F3F4F6' : 'white',
-    color: state.isSelected ? 'white' : '#111827',
-    '&:active': {
-      backgroundColor: '#6552FF',
-    },
-  }),
-  multiValue: (base: any) => ({
-    ...base,
-    backgroundColor: '#EEF2FF',
-  }),
-  multiValueLabel: (base: any) => ({
-    ...base,
-    color: '#6552FF',
-    fontWeight: 500,
-  }),
-  multiValueRemove: (base: any) => ({
-    ...base,
-    color: '#6552FF',
-    '&:hover': {
-      backgroundColor: '#6552FF',
-      color: 'white',
-    },
-  }),
-};
-
-const areaOptions = [
-  { value: 'north', label: 'North Delhi' },
-  { value: 'south', label: 'South Delhi' },
-  { value: 'east', label: 'East Delhi' },
-  { value: 'west', label: 'West Delhi' },
-  { value: 'central', label: 'Central Delhi' },
-];
-
-const cuisineOptions = [
-  { value: 'indian', label: 'Indian' },
-  { value: 'chinese', label: 'Chinese' },
-  { value: 'italian', label: 'Italian' },
-  { value: 'mexican', label: 'Mexican' },
-  { value: 'thai', label: 'Thai' },
-  { value: 'japanese', label: 'Japanese' },
-  { value: 'mediterranean', label: 'Mediterranean' },
-  { value: 'american', label: 'American' },
-  { value: 'korean', label: 'Korean' },
-  { value: 'vietnamese', label: 'Vietnamese' },
-];
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showOTP, setShowOTP] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedArea, setSelectedArea] = useState<any>(null);
-  const [selectedCuisines, setSelectedCuisines] = useState<any[]>([]);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const defaultTimes = {
-    open: '09:00',
-    close: '22:00',
-    isOpen: true
-  };
+  // Listen for injected token from the native app to auto-login
+  useEffect(() => {
+    const handleAuthToken = () => {
+      // @ts-ignore
+      const storedToken = window.authToken;
+      if (storedToken) {
+        setToken(storedToken);
+        setIsLoggedIn(true);
+        toast.success('Auto-logged in successfully!');
+        navigate('/dashboard'); // Navigate to dashboard on auto-login
+      }
+    };
 
-  const [operatingHours, setOperatingHours] = useState({
-    Monday: { ...defaultTimes },
-    Tuesday: { ...defaultTimes },
-    Wednesday: { ...defaultTimes },
-    Thursday: { ...defaultTimes },
-    Friday: { ...defaultTimes },
-    Saturday: { ...defaultTimes },
-    Sunday: { ...defaultTimes }
-  });
+    window.addEventListener('authTokenReady', handleAuthToken);
+    return () => window.removeEventListener('authTokenReady', handleAuthToken);
+  }, [navigate]);
 
+  // Handle login with email and password
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!showOTP) {
-      if (phone.length === 10) {
-        setShowOTP(true);
-        toast.success('OTP sent successfully!');
-      } else {
-        toast.error('Please enter a valid phone number');
-      }
-    } else {
-      navigate('/dashboard');
+    if (!email || !password) {
+      toast.error('Please enter both email and password');
+      return;
     }
+
+    // Simulate token generation (replace with actual API call in production)
+    const newToken = 'example-token-' + email; // Simulated token
+    setToken(newToken);
+    setIsLoggedIn(true);
+
+    // Send the token to the native app via postMessage
+    window.ReactNativeWebView?.postMessage(
+      JSON.stringify({ type: 'LOGIN', token: newToken })
+    );
+
+    toast.success('Logged in successfully!');
+    navigate('/dashboard');
   };
 
+  // Handle signup with email and password
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/approval-pending');
-  };
-
-  const handleTimeChange = (day: string, type: 'open' | 'close', value: string) => {
-    setOperatingHours(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day as keyof typeof prev],
-        [type]: value
-      }
-    }));
-  };
-
-  const toggleDayStatus = (day: string) => {
-    setOperatingHours(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day as keyof typeof prev],
-        isOpen: !prev[day as keyof typeof prev].isOpen
-      }
-    }));
-  };
-
-  const copyTimesToAll = (fromDay: string) => {
-    const sourceTime = operatingHours[fromDay as keyof typeof operatingHours];
-    setOperatingHours(prev => {
-      const newHours = { ...prev };
-      Object.keys(newHours).forEach(day => {
-        if (day !== fromDay) {
-          newHours[day as keyof typeof operatingHours] = { ...sourceTime };
-        }
-      });
-      return newHours;
-    });
-    toast.success('Operating hours copied to all days');
-  };
-
-  const handleSendOTP = () => {
-    if (phone.length === 10) {
-      setOtpSent(true);
-      toast.success('OTP sent successfully!');
-    } else {
-      toast.error('Please enter a valid phone number');
+    if (!email || !password) {
+      toast.error('Please enter both email and password');
+      return;
     }
+
+    // Simulate token generation (replace with actual API call in production)
+    const newToken = 'example-token-' + email; // Simulated token
+    setToken(newToken);
+    setIsLoggedIn(true);
+
+    // Send the token to the native app via postMessage
+    window.ReactNativeWebView?.postMessage(
+      JSON.stringify({ type: 'LOGIN', token: newToken })
+    );
+
+    toast.success('Signed up successfully!');
+    navigate('/dashboard');
   };
 
-  const handleVerifyOTP = () => {
-    if (otp.length === 6) {
-      setPhoneVerified(true);
-      toast.success('Phone number verified successfully!');
-    } else {
-      toast.error('Please enter a valid OTP');
-    }
+  // Handle logout
+  const handleLogout = () => {
+    setToken(null);
+    setIsLoggedIn(false);
+    setEmail('');
+    setPassword('');
+
+    // Clear the token in the native app
+    window.ReactNativeWebView?.postMessage(
+      JSON.stringify({ type: 'LOGOUT' })
+    );
+
+    toast.success('Logged out successfully!');
+    navigate('/');
   };
 
   return (
@@ -212,7 +133,22 @@ const AuthPage = () => {
           className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-8"
         >
           <AnimatePresence mode="wait">
-            {isLogin ? (
+            {isLoggedIn ? (
+              <motion.div
+                key="logged-in"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6 text-center"
+              >
+                <h2 className="text-2xl font-bold text-gray-800">Welcome!</h2>
+                <p className="text-gray-600">You are logged in with token: {token}</p>
+                <button onClick={handleLogout} className="btn-primary w-full group">
+                  <span>Logout</span>
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </button>
+              </motion.div>
+            ) : isLogin ? (
               <motion.form
                 key="login"
                 initial={{ opacity: 0, x: 20 }}
@@ -228,305 +164,109 @@ const AuthPage = () => {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="form-label" htmlFor="loginPhone">Phone Number</label>
+                    <label className="form-label" htmlFor="email">Email Address</label>
                     <div className="input-group">
-                      <Phone className="input-group-icon" size={20} />
+                      <Mail className="input-group-icon" size={20} />
                       <input
-                        id="loginPhone"
-                        type="tel"
+                        id="email"
+                        type="email"
                         className="input-field"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        pattern="[0-9]{10}"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                       />
                     </div>
                   </div>
 
-                  {showOTP && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <label className="form-label" htmlFor="otp">OTP Verification</label>
-                      <div className="input-group">
-                        <Lock className="input-group-icon" size={20} />
-                        <input
-                          id="otp"
-                          type="text"
-                          className="input-field tracking-[0.5em] text-center font-mono"
-                          placeholder="• • • • • •"
-                          maxLength={6}
-                          pattern="[0-9]{6}"
-                          required
-                        />
-                      </div>
-                    </motion.div>
-                  )}
+                  <div>
+                    <label className="form-label" htmlFor="password">Password</label>
+                    <div className="input-group">
+                      <Lock className="input-group-icon" size={20} />
+                      <input
+                        id="password"
+                        type="password"
+                        className="input-field"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <button type="submit" className="btn-primary w-full group">
-                  <span>{showOTP ? 'Verify & Login' : 'Send OTP'}</span>
+                  <span>Login</span>
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </button>
               </motion.form>
             ) : (
               <motion.form
-                key="register"
+                key="signup"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 onSubmit={handleSignup}
-                className="space-y-8"
+                className="space-y-6"
               >
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-gray-800">Register Your Restaurant</h2>
-                  <p className="text-gray-600 mt-2">Fill in the details to get started</p>
+                  <h2 className="text-2xl font-bold text-gray-800">Sign Up</h2>
+                  <p className="text-gray-600 mt-2">Create an account to get started</p>
                 </div>
 
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <User className="w-5 h-5 text-primary" />
-                    Basic Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label" htmlFor="ownerName">Owner Name</label>
-                      <input
-                        id="ownerName"
-                        type="text"
-                        className="input-field"
-                        placeholder="Enter owner's name"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label" htmlFor="restaurantName">Restaurant Name</label>
-                      <div className="input-group">
-                        <Store className="input-group-icon" size={20} />
-                        <input
-                          id="restaurantName"
-                          type="text"
-                          className="input-field"
-                          placeholder="Enter restaurant name"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label" htmlFor="phone">Phone Number</label>
-                      <div className="relative">
-                        <div className="input-group">
-                          <Phone className="input-group-icon" size={20} />
-                          <input
-                            id="phone"
-                            type="tel"
-                            className="input-field"
-                            placeholder="Enter phone number"
-                            pattern="[0-9]{10}"
-                            maxLength={10}
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                            required
-                            disabled={phoneVerified}
-                          />
-                        </div>
-                        {!otpSent && !phoneVerified && (
-                          <button
-                            type="button"
-                            onClick={handleSendOTP}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-primary text-white rounded-md text-sm"
-                          >
-                            Send OTP
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {otpSent && !phoneVerified && (
-                      <div>
-                        <label className="form-label" htmlFor="otp">Enter OTP</label>
-                        <div className="relative">
-                          <div className="input-group">
-                            <Lock className="input-group-icon" size={20} />
-                            <input
-                              id="otp"
-                              type="text"
-                              className="input-field tracking-[0.5em] text-center font-mono"
-                              placeholder="• • • • • •"
-                              maxLength={6}
-                              value={otp}
-                              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              required
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleVerifyOTP}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-primary text-white rounded-md text-sm"
-                          >
-                            Verify
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div>
-                      <label className="form-label" htmlFor="email">Email Address</label>
-                      <div className="input-group">
-                        <Mail className="input-group-icon" size={20} />
-                        <input
-                          id="email"
-                          type="email"
-                          className="input-field"
-                          placeholder="Enter email address"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="space-y-4">
                   <div>
-                    <label className="form-label" htmlFor="address">Restaurant Address</label>
+                    <label className="form-label" htmlFor="email">Email Address</label>
                     <div className="input-group">
-                      <MapPin className="input-group-icon" size={20} />
-                      <textarea
-                        id="address"
-                        className="input-field min-h-[100px]"
-                        placeholder="Enter complete restaurant address"
+                      <Mail className="input-group-icon" size={20} />
+                      <input
+                        id="email"
+                        type="email"
+                        className="input-field"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="form-label" htmlFor="area">Service Area</label>
-                    <Select
-                      id="area"
-                      options={areaOptions}
-                      value={selectedArea}
-                      onChange={setSelectedArea}
-                      styles={selectStyles}
-                      placeholder="Select service area"
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label" htmlFor="cuisines">Cuisine Types</label>
-                    <Select
-                      id="cuisines"
-                      isMulti
-                      options={cuisineOptions}
-                      value={selectedCuisines}
-                      onChange={setSelectedCuisines}
-                      styles={selectStyles}
-                      placeholder="Search and select cuisines"
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                      required
-                    />
-                    <p className="text-sm text-gray-500 mt-1">You can select multiple cuisines</p>
-                  </div>
-
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-primary" />
-                      Operating Hours
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => copyTimesToAll('Monday')}
-                      className="text-sm text-primary hover:bg-primary/5 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
-                    >
-                      <Check size={16} />
-                      Copy Monday's hours to all days
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {Object.entries(operatingHours).map(([day, times]) => (
-                      <div
-                        key={day}
-                        className={`p-4 rounded-lg transition-colors ${
-                          times.isOpen ? 'bg-white border border-gray-200' : 'bg-gray-50 border border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-medium text-gray-700">{day}</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleDayStatus(day)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                              times.isOpen
-                                ? 'bg-green-50 text-green-600'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {times.isOpen ? <Sun size={16} /> : <Moon size={16} />}
-                            {times.isOpen ? 'Open' : 'Closed'}
-                          </button>
-                        </div>
-
-                        {times.isOpen && (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-sm text-gray-600 mb-1 block" htmlFor={`${day}-open`}>
-                                Opening Time
-                              </label>
-                              <input
-                                id={`${day}-open`}
-                                type="time"
-                                className="input-field"
-                                value={times.open}
-                                onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
-                                required={times.isOpen}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm text-gray-600 mb-1 block" htmlFor={`${day}-close`}>
-                                Closing Time
-                              </label>
-                              <input
-                                id={`${day}-close`}
-                                type="time"
-                                className="input-field"
-                                value={times.close}
-                                onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
-                                required={times.isOpen}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    <label className="form-label" htmlFor="password">Password</label>
+                    <div className="input-group">
+                      <Lock className="input-group-icon" size={20} />
+                      <input
+                        id="password"
+                        type="password"
+                        className="input-field"
+                        placeholder="Create a password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <button type="submit" className="btn-primary w-full group">
-                  <span>Submit Registration</span>
+                  <span>Sign Up</span>
                   <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </button>
               </motion.form>
             )}
           </AnimatePresence>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setCurrentStep(1);
-            }}
-            className="mt-6 text-primary font-medium hover:underline text-center w-full"
-          >
-            {isLogin ? 'Register Your Restaurant Now!' : 'Already have an account? Login'}
-          </motion.button>
+          {!isLoggedIn && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsLogin(!isLogin)}
+              className="mt-6 text-primary font-medium hover:underline text-center w-full"
+            >
+              {isLogin ? 'Create an account' : 'Already have an account? Login'}
+            </motion.button>
+          )}
         </motion.div>
       </div>
     </div>
