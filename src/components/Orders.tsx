@@ -116,7 +116,7 @@ const Orders = () => {
     <>
       <div className="responsive-container px-4">
         {/* Fixed Search Bar and Online/Offline Toggle */}
-        <div className="fixed top-0 left-0 right-0 bg-white z-10 px-4 pt-4 pb-2 shadow-sm">
+        <div className="fixed top-0 left-0 right-0 bg-white z-10 px-4 pt-6 pb-2 shadow-sm">
           <div className="flex flex-row items-center justify-between gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
