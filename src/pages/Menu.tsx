@@ -129,93 +129,98 @@ const Menu = () => {
       animate={{ opacity: 1 }}
       className="max-w-7xl mx-auto pb-12 px-4"
     >
-      {/* Search Bar and Add Item Button */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search menu items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+      {/* Fixed Search Bar and Add Item Button */}
+      <div className="fixed top-0 left-0 right-0 bg-white z-10 px-4 pt-4 pb-2 shadow-sm">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary truncate"
+              />
+            </div>
+            <button
+              onClick={handleAddItem}
+              className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
+              title="Add New Item"
+            >
+              <Plus size={20} />
+            </button>
           </div>
-          <button
-            onClick={handleAddItem}
-            className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-            title="Add New Item"
-          >
-            <Plus size={20} />
-          </button>
         </div>
       </div>
 
-      {/* Menu Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.map((item) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden"
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                <button
-                  onClick={() => handleToggleAvailability(item.id)}
-                  className={`p-2 rounded-full text-sm font-medium ${
-                    item.isAvailable
-                      ? 'bg-green-50 text-green-600'
-                      : 'bg-red-50 text-red-600'
-                  }`}
-                  title={item.isAvailable ? 'Available' : 'Unavailable'}
-                >
-                  <Eye size={16} />
-                </button>
-              </div>
-
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{item.description}</p>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <IndianRupee size={16} />
-                  <span className="text-sm">Price: ₹{item.price}</span>
+      {/* Scrollable Content */}
+      <div className="pt-16">
+        {/* Menu Items Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredItems.map((item) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white rounded-xl shadow-sm overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
+                  <button
+                    onClick={() => handleToggleAvailability(item.id)}
+                    className={`p-2 rounded-full text-sm font-medium ${
+                      item.isAvailable
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-red-50 text-red-600'
+                    }`}
+                    title={item.isAvailable ? 'Available' : 'Unavailable'}
+                  >
+                    <Eye size={16} />
+                  </button>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Package size={16} />
-                  <span className="text-sm">Packaging: ₹{item.packagingPrice}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Tag size={16} />
-                  <span className="text-sm">
-                    {gstCategories.find(cat => cat.value === item.gstCategory)?.label}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEditItem(item)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                >
-                  <Edit2 size={16} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 size={16} />
-                  Delete
-                </button>
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{item.description}</p>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <IndianRupee size={16} />
+                    <span className="text-sm">Price: ₹{item.price}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Package size={16} />
+                    <span className="text-sm">Packaging: ₹{item.packagingPrice}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Tag size={16} />
+                    <span className="text-sm">
+                      {gstCategories.find(cat => cat.value === item.gstCategory)?.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEditItem(item)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Edit2 size={16} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Add/Edit Modal */}
@@ -282,7 +287,7 @@ const Menu = () => {
                       <IndianRupee className="input-group-icon" size={20} />
                       <input
                         id="price"
-                        type="number"
+                        type="text"
                         min="0"
                         step="0.01"
                         className="input-field"
@@ -299,7 +304,7 @@ const Menu = () => {
                       <Package className="input-group-icon" size={20} />
                       <input
                         id="packagingPrice"
-                        type="number"
+                        type="text"
                         min="0"
                         step="0.01"
                         className="input-field"

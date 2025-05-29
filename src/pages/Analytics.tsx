@@ -235,16 +235,13 @@ const Analytics = () => {
     >
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Sales Analytics</h1>
-            <p className="text-gray-600">Track your restaurant's performance metrics</p>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-semibold text-gray-800">Analytics Dashboard</h1>
           <Select
             value={selectedRange}
             onChange={(value) => setSelectedRange(value)}
             options={dateRangeOptions}
-            className="w-full sm:w-48 mt-4 sm:mt-0"
+            className="w-full max-w-[200px] sm:w-48"
             isSearchable={false}
             isDisabled={isLoading}
           />
@@ -252,20 +249,20 @@ const Analytics = () => {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {metrics.map((metric, index) => (
           <motion.div
             key={metric.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6 flex flex-col items-center text-center"
+            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center text-center"
           >
-            <div className="p-2 bg-primary/10 rounded-lg mb-4">
-              <metric.icon className="w-6 h-6 text-primary" />
+            <div className="p-2 bg-primary/10 rounded-lg mb-3">
+              <metric.icon className="w-5 h-5 text-primary" />
             </div>
-            <h3 className="text-gray-600 text-sm mb-1">{metric.title}</h3>
-            <p className="text-2xl font-bold text-gray-800">{metric.value}</p>
+            <h3 className="text-gray-600 text-xs sm:text-sm mb-1">{metric.title}</h3>
+            <p className="text-lg sm:text-2xl font-bold text-gray-800">{metric.value}</p>
           </motion.div>
         ))}
       </div>

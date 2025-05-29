@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Select, { SingleValue, MultiValue, StylesConfig } from 'react-select';
-import { Store, Mail, MapPin, Clock, Image as ImageIcon, Sun, Moon, Check, LogOut } from 'lucide-react';
+import { Store, Mail, MapPin, Clock, Image as ImageIcon, Sun, Moon, Check, LogOut, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Reusing the select styles from AuthPage
@@ -215,27 +215,20 @@ const Profile = () => {
       <motion.div
         initial={{ y: -20 }}
         animate={{ y: 0 }}
-        className="bg-white rounded-xl shadow-sm p-6 mb-6"
+        className="bg-white rounded-xl shadow-sm p-6 mb-6 relative"
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Restaurant Profile</h1>
-            <p className="text-gray-600">Manage your restaurant information and settings</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-              className={`btn-primary ${isSaving ? 'opacity-75 cursor-not-allowed' : ''}`}
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Edit Profile'}
-            </button>
+        <div className="flex flex-col items-start gap-4">
+          <div className="flex w-full justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">{profileData.restaurantName}</h1>
+              <p className="text-gray-600">Manage your restaurant details and settings</p>
+            </div>
             <button
               onClick={handleLogout}
-              className="btn-secondary flex items-center gap-2"
+              className="text-red-600 hover:text-red-700 transition-colors"
+              title="Logout"
             >
-              <LogOut size={18} />
-              Logout
+              <LogOut size={24} />
             </button>
           </div>
         </div>
@@ -284,7 +277,17 @@ const Profile = () => {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-xl shadow-sm p-6"
         >
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">Basic Information</h2>
+            <button
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              className={`text-primary hover:text-primary-dark transition-colors ${isSaving ? 'opacity-75 cursor-not-allowed' : ''}`}
+              disabled={isSaving}
+              title={isEditing ? 'Save Changes' : 'Edit Profile'}
+            >
+              {isEditing ? <Check size={20} /> : <Edit2 size={20} />}
+            </button>
+          </div>
           <div className="space-y-4">
             <div>
               <label className="form-label" htmlFor="restaurantName">Restaurant Name</label>
