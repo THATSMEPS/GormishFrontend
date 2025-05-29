@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import Select from 'react-select';
+import Select, { SingleValue, MultiValue, StylesConfig } from 'react-select';
 import { Store, Mail, MapPin, Clock, Image as ImageIcon, Sun, Moon, Check, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Reusing the select styles from AuthPage
-const selectStyles = {
-  control: (base) => ({
+const selectStyles: StylesConfig<{ value: string; label: string }, true> = {
+  control: (base: any) => ({
     ...base,
     minHeight: '42px',
     backgroundColor: 'white',
@@ -21,7 +21,7 @@ const selectStyles = {
       boxShadow: '0 0 0 2px rgba(101, 82, 255, 0.1)',
     },
   }),
-  option: (base, state) => ({
+  option: (base: any, state: any) => ({
     ...base,
     backgroundColor: state.isSelected ? '#6552FF' : state.isFocused ? '#F3F4F6' : 'white',
     color: state.isSelected ? 'white' : '#111827',
@@ -29,16 +29,16 @@ const selectStyles = {
       backgroundColor: '#6552FF',
     },
   }),
-  multiValue: (base) => ({
+  multiValue: (base: any) => ({
     ...base,
     backgroundColor: '#EEF2FF',
   }),
-  multiValueLabel: (base) => ({
+  multiValueLabel: (base: any) => ({
     ...base,
     color: '#6552FF',
     fontWeight: 500,
   }),
-  multiValueRemove: (base) => ({
+  multiValueRemove: (base: any) => ({
     ...base,
     color: '#6552FF',
     '&:hover': {
@@ -79,11 +79,20 @@ const Profile = () => {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const fileInputRef = useRef(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Dummy initial data
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<{
+    restaurantName: string;
+    email: string;
+    description: string;
+    address: string;
+    image: string;
+    serviceArea: { value: string; label: string };
+    cuisineTypes: { value: string; label: string }[];
+    restaurantType: { value: string; label: string };
+  }>({
     restaurantName: 'Tasty Bites Restaurant',
     email: 'contact@tastybites.com',
     description: 'A cozy restaurant serving delicious multi-cuisine dishes in the heart of Delhi.',
@@ -103,7 +112,7 @@ const Profile = () => {
     isOpen: true
   };
 
-  const [operatingHours, setOperatingHours] = useState({
+  const [operatingHours, setOperatingHours] = useState<Record<string, { open: string; close: string; isOpen: boolean }>>({
     Monday: { ...defaultTimes },
     Tuesday: { ...defaultTimes },
     Wednesday: { ...defaultTimes },
@@ -113,7 +122,7 @@ const Profile = () => {
     Sunday: { ...defaultTimes }
   });
 
-  const handleTimeChange = (day, type, value) => {
+  const handleTimeChange = (day: string, type: string, value: string) => {
     setOperatingHours(prev => ({
       ...prev,
       [day]: {
@@ -123,7 +132,7 @@ const Profile = () => {
     }));
   };
 
-  const toggleDayStatus = (day) => {
+  const toggleDayStatus = (day: string) => {
     setOperatingHours(prev => ({
       ...prev,
       [day]: {
@@ -133,11 +142,11 @@ const Profile = () => {
     }));
   };
 
-  const copyTimesToAll = (fromDay) => {
+  const copyTimesToAll = (fromDay: string) => {
     const sourceTime = operatingHours[fromDay];
     setOperatingHours(prev => {
       const newHours = { ...prev };
-      Object.keys(newHours).forEach(day => {
+      (Object.keys(newHours) as Array<keyof typeof newHours>).forEach(day => {
         if (day !== fromDay) {
           newHours[day] = { ...sourceTime };
         }
@@ -157,12 +166,24 @@ const Profile = () => {
   };
 
   const handleLogout = () => {
-    // Clear any stored data/tokens here
-    navigate('/', { replace: true });
+    // Set logout state to prevent auto-login
+    if (window.ReactNativeWebView) {
+      // Clear window.authToken to prevent auto-login after WebView reload
+      window.authToken = undefined;
+      // Clear localStorage
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('authToken');
+      // Send LOGOUT message to native app
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({ type: 'LOGOUT' })
+      );
+    }
+    // Redirect to login page
+    window.location.href = '/';
   };
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file) {
       const imageURL = URL.createObjectURL(file);
       setUploadedImage(imageURL);
@@ -171,7 +192,7 @@ const Profile = () => {
   };
 
   const triggerFileInputClick = () => {
-    fileInputRef.current.click();
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   // Prevent back navigation after logout
@@ -337,7 +358,9 @@ const Profile = () => {
                 id="restaurantType"
                 options={restaurantTypes}
                 value={profileData.restaurantType}
-                onChange={(value) => setProfileData({ ...profileData, restaurantType: value })}
+                onChange={(value: SingleValue<{ value: string; label: string }>) => {
+                  if (value) setProfileData({ ...profileData, restaurantType: value });
+                }}
                 styles={selectStyles}
                 isDisabled={!isEditing}
               />
@@ -349,7 +372,9 @@ const Profile = () => {
                 id="serviceArea"
                 options={areaOptions}
                 value={profileData.serviceArea}
-                onChange={(value) => setProfileData({ ...profileData, serviceArea: value })}
+                onChange={(value: SingleValue<{ value: string; label: string }>) => {
+                  if (value) setProfileData({ ...profileData, serviceArea: value });
+                }}
                 styles={selectStyles}
                 isDisabled={!isEditing}
               />
@@ -361,8 +386,10 @@ const Profile = () => {
                 id="cuisineTypes"
                 isMulti
                 options={cuisineOptions}
-                value={profileData.cuisineTypes}
-                onChange={(value) => setProfileData({ ...profileData, cuisineTypes: value })}
+                value={profileData.cuisineTypes as { value: string; label: string }[]}
+                onChange={(newValue: MultiValue<{ value: string; label: string }>, _actionMeta) => {
+                  setProfileData({ ...profileData, cuisineTypes: Array.from(newValue) });
+                }}
                 styles={selectStyles}
                 isDisabled={!isEditing}
               />

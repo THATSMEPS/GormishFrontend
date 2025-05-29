@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Menu, Home, ShoppingBag, PieChart, User } from 'lucide-react';
@@ -20,11 +20,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar for desktop */}
+      {/* Sidebar for desktop only */}
       <motion.aside 
         initial={{ x: -250 }}
         animate={{ x: 0 }}
-        className="sidebar"
+        className="sidebar hidden md:block"
       >
         <div className="flex items-center gap-3 mb-8">
           <Menu size={24} className="text-primary" />

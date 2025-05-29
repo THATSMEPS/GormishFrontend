@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Edit2, Trash2, X, IndianRupee, Package, FileText, Tag } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, IndianRupee, Package, FileText, Tag, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MenuItem {
@@ -129,34 +129,26 @@ const Menu = () => {
       animate={{ opacity: 1 }}
       className="max-w-7xl mx-auto pb-12 px-4"
     >
-      {/* Header */}
+      {/* Search Bar and Add Item Button */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Menu Management</h1>
-            <p className="text-gray-600">Add and manage your restaurant's menu items</p>
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search menu items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
           </div>
           <button
             onClick={handleAddItem}
-            className="btn-primary whitespace-nowrap"
+            className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+            title="Add New Item"
           >
             <Plus size={20} />
-            Add New Item
           </button>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search menu items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 w-full rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
         </div>
       </div>
 
@@ -175,13 +167,14 @@ const Menu = () => {
                 <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
                 <button
                   onClick={() => handleToggleAvailability(item.id)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  className={`p-2 rounded-full text-sm font-medium ${
                     item.isAvailable
                       ? 'bg-green-50 text-green-600'
                       : 'bg-red-50 text-red-600'
                   }`}
+                  title={item.isAvailable ? 'Available' : 'Unavailable'}
                 >
-                  {item.isAvailable ? 'Available' : 'Unavailable'}
+                  <Eye size={16} />
                 </button>
               </div>
 
@@ -254,7 +247,7 @@ const Menu = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto pb-16">
+              <div className="p-6 space-y-4 overflow-y-auto pb-16">
                 <div>
                   <label className="form-label" htmlFor="name">Item Name</label>
                   <div className="input-group">
@@ -362,7 +355,7 @@ const Menu = () => {
                     {editingItem ? 'Save Changes' : 'Add Item'}
                   </button>
                 </div>
-              </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
