@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, MapPin, Phone, Pencil, Radius } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Add these types at the top of the file
@@ -14,17 +14,25 @@ declare global {
   }
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://99ce-138-199-21-196.ngrok-free.app';
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [restaurantName, setRestaurantName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [servingRadius, setServingRadius] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const saved = localStorage.getItem('isLoggedIn');
     return saved ? JSON.parse(saved) : false;
   });
   const [token, setToken] = useState<string | null>(() => {
     const saved = localStorage.getItem('authToken');
-    return saved ? JSON.parse(saved) : null;
+    return saved ? saved : null; // Use as plain string, do not JSON.parse
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false); // Track logout state
   const navigate = useNavigate();
@@ -33,7 +41,11 @@ const AuthPage = () => {
   useEffect(() => {
     if (!isLoggingOut) {
       localStorage.setItem('isLoggedIn', JSON.stringify(isLoggedIn));
-      localStorage.setItem('authToken', JSON.stringify(token));
+      if (token) {
+        localStorage.setItem('authToken', token); // Store as plain string
+      } else {
+        localStorage.removeItem('authToken');
+      }
       console.log('[AuthPage] Persisted state to localStorage:', { isLoggedIn, token });
     }
   }, [isLoggedIn, token, isLoggingOut]);
@@ -93,7 +105,7 @@ const AuthPage = () => {
     }
   }, [isLoggedIn, navigate, isLoggingOut]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error('Please enter both email and password');
@@ -101,40 +113,123 @@ const AuthPage = () => {
       return;
     }
 
-    const newToken = 'example-token-' + email;
-    console.log('[AuthPage] Generated token for login:', newToken);
-    setToken(newToken);
-    setIsLoggedIn(true);
-
-    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken);
-    window.ReactNativeWebView?.postMessage(
-      JSON.stringify({ type: 'LOGIN', token: newToken })
-    );
-
-    toast.success('Logged in successfully!');
-    navigate('/dashboard', { replace: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/restaurants/loginRestaurant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          returnSecureToken: true,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && (data.success || data.status === 'success')) {
+        // Accept token if present, but not required for your backend
+        if (data.idToken || data.token) {
+          setToken(data.idToken || data.token);
+          localStorage.setItem('authToken', String(data.idToken || data.token)); // Store as plain string, not JSON
+          window.ReactNativeWebView?.postMessage(
+            JSON.stringify({ type: 'LOGIN', token: data.idToken || data.token })
+          );
+        }
+        setIsLoggedIn(true);
+        // Store restaurantId from backend response if present
+        if (data.restaurantId) {
+          localStorage.setItem('restaurantId', data.restaurantId);
+          const restaurant = await fetch(`${API_BASE_URL}/restaurants/${data.restaurantId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const restaurantData = await restaurant.json();
+          if (restaurantData && restaurantData.data) {
+            localStorage.setItem('restaurant', JSON.stringify(restaurantData.data));
+          } else {
+            localStorage.setItem('restaurant', JSON.stringify(restaurantData));
+          }
+        }
+        toast.success('Logged in successfully!');
+        navigate('/dashboard', { replace: true });
+      } else {
+        toast.error(data.detail || data.message || data.error?.message || 'Login failed');
+      }
+    } catch (err) {
+      toast.error('Login failed. Please try again.');
+      console.error('[AuthPage] Login error:', err);
+    }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Please enter both email and password');
-      console.log('[AuthPage] Signup failed: Email or password missing');
+    if (!restaurantName || !signupEmail || !signupPassword || !mobileNumber || !address || !servingRadius) {
+      toast.error('Please fill all fields');
       return;
     }
 
-    const newToken = 'example-token-' + email;
-    console.log('[AuthPage] Generated token for signup:', newToken);
-    setToken(newToken);
-    setIsLoggedIn(true);
-
-    console.log('[AuthPage] Sending LOGIN message to native app with token:', newToken);
-    window.ReactNativeWebView?.postMessage(
-      JSON.stringify({ type: 'LOGIN', token: newToken })
-    );
-
-    toast.success('Signed up successfully!');
-    navigate('/dashboard', { replace: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/restaurants/createNewRestaurant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: restaurantName,
+          email: signupEmail,
+          password: signupPassword,
+          mobileNumber: mobileNumber,
+          address: address,
+          servingRadius: Number(servingRadius),
+          foodItems: [] // Required by backend, can be empty for signup
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && (data.success || data.status === 'success')) {
+        // Store restaurantId from backend response if present
+        const restaurantId = data.restaurantId || (data.data && data.data._id);
+        if (restaurantId) {
+          localStorage.setItem('restaurantId', restaurantId);
+          // Fetch and store restaurant details after signup
+          try {
+            const restaurantRes = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}`, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            if (restaurantRes.ok) {
+              const restaurantData = await restaurantRes.json();
+              if (restaurantData && restaurantData.data) {
+                localStorage.setItem('restaurant', JSON.stringify(restaurantData.data));
+              } else {
+                localStorage.setItem('restaurant', JSON.stringify(restaurantData));
+              }
+            }
+          } catch (fetchErr) {
+            console.error('[AuthPage] Failed to fetch restaurant details after signup:', fetchErr);
+          }
+        }
+        toast.success('Signed up successfully!');
+        setIsLoggedIn(true);
+        setToken(data.idToken || data.token || null);
+        // Store token in localStorage immediately for consistency
+        if (data.idToken || data.token) {
+          localStorage.setItem('authToken', String(data.idToken || data.token)); // Store as plain string, not JSON
+        }
+        setIsLogin(true);
+        setEmail(signupEmail);
+        setPassword(signupPassword);
+        setRestaurantName('');
+        setSignupEmail('');
+        setSignupPassword('');
+        setMobileNumber('');
+        setAddress('');
+        setServingRadius('');
+        navigate('/dashboard', { replace: true });
+      } else {
+        toast.error(data.detail || data.message || 'Signup failed');
+      }
+    } catch (err) {
+      toast.error('Signup failed. Please try again.');
+      console.error('[AuthPage] Signup error:', err);
+    }
   };
 
   const handleLogout = () => {
@@ -293,36 +388,98 @@ const AuthPage = () => {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="form-label" htmlFor="email">Email Address</label>
+                    <label className="form-label" htmlFor="restaurantName">Restaurant Name</label>
+                    <div className="input-group">
+                      <Pencil className="input-group-icon" size={20} />
+
+                      <input
+                        id="restaurantName"
+                        type="text"
+                        className="input-field"
+                        placeholder="Enter your Restaurant name"
+                        value={restaurantName}
+                        onChange={(e) => setRestaurantName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="signupEmail">Email Address</label>
                     <div className="input-group">
                       <Mail className="input-group-icon" size={20} />
                       <input
-                        id="email"
+                        id="signupEmail"
                         type="email"
                         className="input-field"
                         placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="signupPassword">Password</label>
+                    <div className="input-group">
+                      <Lock className="input-group-icon" size={20} />
+                      <input
+                        id="signupPassword"
+                        type="password"
+                        className="input-field"
+                        placeholder="Create a password"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="mobileNumber">Mobile Number</label>
+                    <div className="input-group">
+                      <Phone className="input-group-icon" size={20} />
+                      <input
+                        id="mobileNumber"
+                        type="tel"
+                        className="input-field"
+                        placeholder="Enter your mobile number"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="address">Address</label>
+                    <div className="input-group">
+                      <MapPin className="input-group-icon" size={20} />
+                      <input
+                        id="address"
+                        type="text"
+                        className="input-field"
+                        placeholder="Enter your Restaurant's Address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="servingRadius">Serving Radius</label>
+                    <div className="input-group">
+                      <Radius className="input-group-icon" size={20} />
+                      <input
+                        id="servingRadius"
+                        type="text"
+                        className="input-field"
+                        placeholder="Enter your serving radius in km"
+                        value={servingRadius}
+                        onChange={(e) => setServingRadius(e.target.value)}
                         required
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="form-label" htmlFor="password">Password</label>
-                    <div className="input-group">
-                      <Lock className="input-group-icon" size={20} />
-                      <input
-                        id="password"
-                        type="password"
-                        className="input-field"
-                        placeholder="Create a password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+                  
                 </div>
 
                 <button type="submit" className="btn-primary w-full group">

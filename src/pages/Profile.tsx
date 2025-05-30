@@ -48,32 +48,9 @@ const selectStyles: StylesConfig<{ value: string; label: string }, true> = {
   }),
 };
 
-const areaOptions = [
-  { value: 'north', label: 'North Delhi' },
-  { value: 'south', label: 'South Delhi' },
-  { value: 'east', label: 'East Delhi' },
-  { value: 'west', label: 'West Delhi' },
-  { value: 'central', label: 'Central Delhi' },
-];
-
-const cuisineOptions = [
-  { value: 'indian', label: 'Indian' },
-  { value: 'chinese', label: 'Chinese' },
-  { value: 'italian', label: 'Italian' },
-  { value: 'mexican', label: 'Mexican' },
-  { value: 'thai', label: 'Thai' },
-  { value: 'japanese', label: 'Japanese' },
-  { value: 'mediterranean', label: 'Mediterranean' },
-  { value: 'american', label: 'American' },
-  { value: 'korean', label: 'Korean' },
-  { value: 'vietnamese', label: 'Vietnamese' },
-];
-
-const restaurantTypes = [
-  { value: 'veg', label: 'Pure Veg' },
-  { value: 'non-veg', label: 'Non-Veg' },
-  { value: 'both', label: 'Both Veg & Non-Veg' },
-];
+// TODO: Fetch cuisineOptions and restaurantTypes from backend or config instead of hardcoding
+const cuisineOptions: { value: string; label: string }[] = [];
+const restaurantTypes: { value: string; label: string }[] = [];
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -82,28 +59,32 @@ const Profile = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Dummy initial data
   const [profileData, setProfileData] = useState<{
-    restaurantName: string;
-    email: string;
-    description: string;
-    address: string;
-    image: string;
-    serviceArea: { value: string; label: string };
+    restaurantName: string | undefined;
+    email: string | undefined;
+    description: string | undefined;
+    address: string | undefined;
+    image: string | undefined;
+    servingRadius: number | undefined;
     cuisineTypes: { value: string; label: string }[];
-    restaurantType: { value: string; label: string };
+    restaurantType: { value: string; label: string } | undefined;
+    phone: string | undefined;
+    website: string | undefined;
+    gstNumber: string | undefined;
+    fssaiNumber: string | undefined;
   }>({
-    restaurantName: 'Tasty Bites Restaurant',
-    email: 'contact@tastybites.com',
-    description: 'A cozy restaurant serving delicious multi-cuisine dishes in the heart of Delhi.',
-    address: '42, Food Street, Connaught Place, New Delhi - 110001',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    serviceArea: { value: 'central', label: 'Central Delhi' },
-    cuisineTypes: [
-      { value: 'indian', label: 'Indian' },
-      { value: 'chinese', label: 'Chinese' },
-    ],
-    restaurantType: { value: 'both', label: 'Both Veg & Non-Veg' },
+    restaurantName: undefined,
+    email: undefined,
+    description: undefined,
+    address: undefined,
+    image: undefined,
+    servingRadius: undefined,
+    cuisineTypes: [],
+    restaurantType: undefined,
+    phone: undefined,
+    website: undefined,
+    gstNumber: undefined,
+    fssaiNumber: undefined,
   });
 
   const defaultTimes = {
@@ -156,29 +137,231 @@ const Profile = () => {
     toast.success('Operating hours copied to all days');
   };
 
+  // Helper to normalize restaurant data from backend
+  function normalizeRestaurantData(restaurant: any) {
+    return {
+      name: restaurant.name || '',
+      email: restaurant.email || '',
+      description: restaurant.description || '',
+      address: restaurant.address || '',
+      image: restaurant.image || '',
+      servingRadius: restaurant.servingRadius ?? 0,
+      cuisineTypes: restaurant.cuisineType
+        ? restaurant.cuisineType.split(',').filter((c: string) => c)
+        : [],
+      restaurantType: restaurant.restaurantType || '',
+      mobileNumber: restaurant.mobileNumber || '',
+      phone: restaurant.mobileNumber || '',
+      website: restaurant.website || '',
+      gstNumber: restaurant.gstNumber || '',
+      fssaiNumber: restaurant.fssaiNumber || '',
+      operatingHours: restaurant.operatingHours || null,
+      foodItems: restaurant.foodItems || [],
+    };
+  }
+
+  // Fetch restaurant profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const restaurantId = localStorage.getItem('restaurantId');
+        if (!token || !restaurantId) return;
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/restaurants/${restaurantId}`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'success' && data.data) {
+          const normalizedRestaurant = normalizeRestaurantData(data.data);
+          setProfileData({
+            restaurantName: normalizedRestaurant.name,
+            email: normalizedRestaurant.email,
+            description: normalizedRestaurant.description,
+            address: normalizedRestaurant.address,
+            image: normalizedRestaurant.image,
+            servingRadius: normalizedRestaurant.servingRadius,
+            cuisineTypes: Array.isArray(normalizedRestaurant.cuisineTypes)
+              ? normalizedRestaurant.cuisineTypes
+                  .map((c: string) => cuisineOptions.find(opt => opt.value === c))
+                  .filter((v): v is { value: string; label: string } => Boolean(v))
+              : [],
+            restaurantType: restaurantTypes.find(opt => opt.value === normalizedRestaurant.restaurantType),
+            phone: normalizedRestaurant.mobileNumber || normalizedRestaurant.phone,
+            website: normalizedRestaurant.website,
+            gstNumber: normalizedRestaurant.gstNumber,
+            fssaiNumber: normalizedRestaurant.fssaiNumber,
+          });
+          if (normalizedRestaurant.operatingHours) {
+            setOperatingHours(normalizedRestaurant.operatingHours);
+          }
+          // Save normalized data to localStorage
+          localStorage.setItem('restaurant', JSON.stringify(normalizedRestaurant));
+        }
+      } catch (err) {
+        // Optionally show error
+      }
+    };
+    fetchProfile();
+    // eslint-disable-next-line
+  }, []);
+
+  // Load profile data from localStorage if user is logged in
+  useEffect(() => {
+    const restaurant = localStorage.getItem('restaurant');
+    if (restaurant) {
+      try {
+        const data = JSON.parse(restaurant);
+        setProfileData({
+          restaurantName: data.name,
+          email: data.email,
+          description: data.description,
+          address: data.address,
+          image: data.image,
+          servingRadius: data.servingRadius,
+          cuisineTypes: Array.isArray(data.cuisineTypes || data.cuisineType)
+            ? (data.cuisineTypes || data.cuisineType).map((c: string) => cuisineOptions.find(opt => opt.value === c)).filter(Boolean)
+            : [],
+          restaurantType: restaurantTypes.find(opt => opt.value === data.restaurantType),
+          phone: data.mobileNumber || data.phone,
+          website: data.website,
+          gstNumber: data.gstNumber,
+          fssaiNumber: data.fssaiNumber,
+        });
+        if (data.operatingHours) {
+          setOperatingHours(data.operatingHours);
+        }
+      } catch {}
+    }
+  }, []); // <-- remove [isEditing], run only once on mount
+
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const token = localStorage.getItem('authToken');
+      const restaurantId = localStorage.getItem('restaurantId');
+      if (!token) throw new Error('Not authenticated');
+      // Only send allowed fields as per backend (remove password)
+      const updatePayload: Record<string, any> = {
+        name: profileData.restaurantName,
+        email: profileData.email, // include email for update
+        address: profileData.address,
+        mobileNumber: profileData.phone, // phone is mobileNumber
+        description: profileData.description,
+        servingRadius: profileData.servingRadius,
+        cuisineType: profileData.cuisineTypes.map(c => c.value).join(','),
+        restaurantType: profileData.restaurantType ? profileData.restaurantType.value : undefined,
+      };
+      // Remove undefined/null fields
+      Object.keys(updatePayload).forEach(key => {
+        if (updatePayload[key] === undefined || updatePayload[key] === null) {
+          delete updatePayload[key];
+        }
+      });
+      // Add console log to confirm update is sent
+      console.log('Sending profile update:', updatePayload);
+      console.log('Sending JSON:', JSON.stringify(updatePayload));
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/restaurants/updateRestaurant`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatePayload),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        toast.success('Profile updated successfully!');
+        // Re-fetch the latest profile data from backend
+        if (restaurantId) {
+          try {
+            const profileRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/restaurants/${restaurantId}`, {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const profileDataRes = await profileRes.json();
+            if (profileRes.ok && profileDataRes.status === 'success' && profileDataRes.data) {
+              const normalizedRestaurant = normalizeRestaurantData(profileDataRes.data);
+              // Update localStorage with the latest normalized data
+              localStorage.setItem('restaurant', JSON.stringify(normalizedRestaurant));
+              // Update state directly from normalized data (not from localStorage)
+              setProfileData({
+                restaurantName: normalizedRestaurant.name,
+                email: normalizedRestaurant.email,
+                description: normalizedRestaurant.description,
+                address: normalizedRestaurant.address,
+                image: normalizedRestaurant.image,
+                servingRadius: normalizedRestaurant.servingRadius,
+                cuisineTypes: Array.isArray(normalizedRestaurant.cuisineTypes)
+                  ? normalizedRestaurant.cuisineTypes
+                      .map((c: string) => cuisineOptions.find(opt => opt.value === c))
+                      .filter((v): v is { value: string; label: string } => Boolean(v))
+                  : [],
+                restaurantType: restaurantTypes.find(opt => opt.value === normalizedRestaurant.restaurantType),
+                phone: normalizedRestaurant.mobileNumber || normalizedRestaurant.phone,
+                website: normalizedRestaurant.website,
+                gstNumber: normalizedRestaurant.gstNumber,
+                fssaiNumber: normalizedRestaurant.fssaiNumber,
+              });
+              if (normalizedRestaurant.operatingHours) {
+                setOperatingHours(normalizedRestaurant.operatingHours);
+              }
+            }
+          } catch (fetchErr) {
+            console.error('Failed to fetch updated profile:', fetchErr);
+          }
+        }
+        setIsEditing(false);
+      } else {
+        console.error('Update failed. Backend response:', data, 'HTTP status:', res.status);
+        toast.error(
+          data.detail || data.message || data.error || `Failed to update profile (HTTP ${res.status})`
+        );
+      }
+    } catch (err) {
+      console.error('Exception during profile update:', err);
+      toast.error(typeof err === 'object' && err !== null && 'message' in err ? (err as any).message : String(err) || 'Failed to update Profile.');
+    }
     setIsSaving(false);
-    setIsEditing(false);
-    toast.success('Profile updated successfully!');
   };
 
   const handleLogout = () => {
-    // Set logout state to prevent auto-login
+    // Only clear localStorage and state on logout
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('restaurant');
+    localStorage.removeItem('restaurantId');
+    setIsEditing(false);
+    setIsSaving(false);
+    setProfileData({
+      restaurantName: undefined,
+      email: undefined,
+      description: undefined,
+      address: undefined,
+      image: undefined,
+      servingRadius: undefined,
+      cuisineTypes: [],
+      restaurantType: undefined,
+      phone: undefined,
+      website: undefined,
+      gstNumber: undefined,
+      fssaiNumber: undefined,
+    });
+    setOperatingHours({
+      Monday: { ...defaultTimes },
+      Tuesday: { ...defaultTimes },
+      Wednesday: { ...defaultTimes },
+      Thursday: { ...defaultTimes },
+      Friday: { ...defaultTimes },
+      Saturday: { ...defaultTimes },
+      Sunday: { ...defaultTimes }
+    });
     if (window.ReactNativeWebView) {
-      // Clear window.authToken to prevent auto-login after WebView reload
       window.authToken = undefined;
-      // Clear localStorage
-      localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('authToken');
-      // Send LOGOUT message to native app
       window.ReactNativeWebView.postMessage(
         JSON.stringify({ type: 'LOGOUT' })
       );
     }
-    // Redirect to login page
     window.location.href = '/';
   };
 
@@ -244,29 +427,10 @@ const Profile = () => {
         >
           <div className="relative h-48 sm:h-64">
             <img
-              src={uploadedImage || profileData.image}
+              src={profileData.image}
               alt="Restaurant"
-              className="w-full h-full object-cover cursor-pointer"
-              onClick={triggerFileInputClick}
+              className="w-full h-full object-cover"
             />
-            {isEditing && (
-              <>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  ref={fileInputRef}
-                />
-                <button
-                  onClick={triggerFileInputClick}
-                  className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm text-gray-700 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 hover:bg-white transition-colors"
-                >
-                  <ImageIcon size={18} />
-                  Change Image
-                </button>
-              </>
-            )}
           </div>
         </motion.div>
 
@@ -297,7 +461,7 @@ const Profile = () => {
                   id="restaurantName"
                   type="text"
                   className="input-field"
-                  value={profileData.restaurantName}
+                  value={profileData.restaurantName || ""}
                   onChange={(e) => setProfileData({ ...profileData, restaurantName: e.target.value })}
                   disabled={!isEditing}
                 />
@@ -312,9 +476,8 @@ const Profile = () => {
                   id="email"
                   type="email"
                   className="input-field"
-                  value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                  disabled={!isEditing}
+                  value={profileData.email || ""}
+                  disabled
                 />
               </div>
             </div>
@@ -324,7 +487,7 @@ const Profile = () => {
               <textarea
                 id="description"
                 className="input-field min-h-[100px]"
-                value={profileData.description}
+                value={profileData.description || ""}
                 onChange={(e) => setProfileData({ ...profileData, description: e.target.value })}
                 disabled={!isEditing}
               />
@@ -337,8 +500,81 @@ const Profile = () => {
                 <textarea
                   id="address"
                   className="input-field min-h-[80px]"
-                  value={profileData.address}
+                  value={profileData.address || ""}
                   onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label" htmlFor="servingRadius">Serving Radius (km)</label>
+              <div className="input-group">
+                <Clock className="input-group-icon" size={20} />
+                <input
+                  id="servingRadius"
+                  type="number"
+                  className="input-field"
+                  value={profileData.servingRadius ?? ""}
+                  min={1}
+                  max={100}
+                  onChange={e => setProfileData({ ...profileData, servingRadius: Number(e.target.value) })}
+                  disabled={!isEditing}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label" htmlFor="phone">Phone</label>
+              <div className="input-group">
+                <input
+                  id="phone"
+                  type="text"
+                  className="input-field"
+                  value={profileData.phone || ""}
+                  onChange={e => setProfileData({ ...profileData, phone: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label" htmlFor="website">Website</label>
+              <div className="input-group">
+                <input
+                  id="website"
+                  type="text"
+                  className="input-field"
+                  value={profileData.website || ""}
+                  onChange={e => setProfileData({ ...profileData, website: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label" htmlFor="gstNumber">GST Number</label>
+              <div className="input-group">
+                <input
+                  id="gstNumber"
+                  type="text"
+                  className="input-field"
+                  value={profileData.gstNumber || ""}
+                  onChange={e => setProfileData({ ...profileData, gstNumber: e.target.value })}
+                  disabled={!isEditing}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label" htmlFor="fssaiNumber">FSSAI Number</label>
+              <div className="input-group">
+                <input
+                  id="fssaiNumber"
+                  type="text"
+                  className="input-field"
+                  value={profileData.fssaiNumber || ""}
+                  onChange={e => setProfileData({ ...profileData, fssaiNumber: e.target.value })}
                   disabled={!isEditing}
                 />
               </div>
@@ -364,22 +600,8 @@ const Profile = () => {
                 onChange={(value: SingleValue<{ value: string; label: string }>) => {
                   if (value) setProfileData({ ...profileData, restaurantType: value });
                 }}
-                styles={selectStyles}
                 isDisabled={!isEditing}
-              />
-            </div>
-
-            <div>
-              <label className="form-label" htmlFor="serviceArea">Service Area</label>
-              <Select
-                id="serviceArea"
-                options={areaOptions}
-                value={profileData.serviceArea}
-                onChange={(value: SingleValue<{ value: string; label: string }>) => {
-                  if (value) setProfileData({ ...profileData, serviceArea: value });
-                }}
-                styles={selectStyles}
-                isDisabled={!isEditing}
+                styles={selectStyles as any}
               />
             </div>
 
@@ -387,14 +609,12 @@ const Profile = () => {
               <label className="form-label" htmlFor="cuisineTypes">Cuisine Types</label>
               <Select
                 id="cuisineTypes"
-                isMulti
                 options={cuisineOptions}
-                value={profileData.cuisineTypes as { value: string; label: string }[]}
-                onChange={(newValue: MultiValue<{ value: string; label: string }>, _actionMeta) => {
-                  setProfileData({ ...profileData, cuisineTypes: Array.from(newValue) });
-                }}
-                styles={selectStyles}
+                value={profileData.cuisineTypes}
+                onChange={(value) => setProfileData({ ...profileData, cuisineTypes: value ? [...value] : [] })}
+                isMulti
                 isDisabled={!isEditing}
+                styles={selectStyles as any}
               />
             </div>
           </div>
@@ -407,77 +627,58 @@ const Profile = () => {
           transition={{ delay: 0.3 }}
           className="bg-white rounded-xl shadow-sm p-6"
         >
-          <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-800">Operating Hours</h2>
-            {isEditing && (
-              <button
-                onClick={() => copyTimesToAll('Monday')}
-                className="text-sm text-primary hover:bg-primary/5 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
-              >
-                <Check size={16} />
-                Copy Monday's hours to all days
-              </button>
-            )}
+            <button
+              onClick={() => setIsEditing(prev => !prev)}
+              className="text-primary hover:text-primary-dark transition-colors"
+              title={isEditing ? 'Save Hours' : 'Edit Hours'}
+            >
+              {isEditing ? <Check size={20} /> : <Edit2 size={20} />}
+            </button>
           </div>
-
-          <div className="space-y-3">
-            {Object.entries(operatingHours).map(([day, times]) => (
-              <div
-                key={day}
-                className={`p-4 rounded-lg transition-colors ${
-                  times.isOpen ? 'bg-white border border-gray-200' : 'bg-gray-50 border border-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-medium text-gray-700">{day}</span>
-                  {isEditing && (
-                    <button
-                      onClick={() => toggleDayStatus(day)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                        times.isOpen
-                          ? 'bg-green-50 text-green-600'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {times.isOpen ? <Sun size={16} /> : <Moon size={16} />}
-                      {times.isOpen ? 'Open' : 'Closed'}
-                    </button>
-                  )}
-                </div>
-
-                {times.isOpen && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-gray-600 mb-1 block" htmlFor={`${day}-open`}>
-                        Opening Time
-                      </label>
-                      <input
-                        id={`${day}-open`}
-                        type="time"
-                        className="input-field"
-                        value={times.open}
-                        onChange={(e) => handleTimeChange(day, 'open', e.target.value)}
-                        disabled={!isEditing}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600 mb-1 block" htmlFor={`${day}-close`}>
-                        Closing Time
-                      </label>
-                      <input
-                        id={`${day}-close`}
-                        type="time"
-                        className="input-field"
-                        value={times.close}
-                        onChange={(e) => handleTimeChange(day, 'close', e.target.value)}
-                        disabled={!isEditing}
-                      />
-                    </div>
+          <div className="grid grid-cols-7 gap-4">
+            {Object.keys(operatingHours).map((day, idx) => {
+              const { open, close, isOpen } = operatingHours[day];
+              return (
+                <div key={day} className="flex flex-col">
+                  <span className="text-sm text-gray-500">{day}</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="time"
+                      value={open}
+                      onChange={e => handleTimeChange(day, 'open', e.target.value)}
+                      disabled={!isEditing}
+                      className="input-field w-full"
+                    />
+                    <input
+                      type="time"
+                      value={close}
+                      onChange={e => handleTimeChange(day, 'close', e.target.value)}
+                      disabled={!isEditing}
+                      className="input-field w-full"
+                    />
                   </div>
-                )}
-              </div>
-            ))}
+                  <button
+                    onClick={() => toggleDayStatus(day)}
+                    disabled={!isEditing}
+                    className={`mt-2 px-3 py-1 rounded-md text-sm font-semibold transition-all flex items-center justify-center ${isOpen ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}
+                  >
+                    {isOpen ? <Sun size={16} className="mr-1" /> : <Moon size={16} className="mr-1" />}
+                    {isOpen ? 'Open' : 'Closed'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
+          <button
+            onClick={() => copyTimesToAll(Object.keys(operatingHours)[0])}
+            disabled={!isEditing}
+            className="mt-4 w-full bg-blue-600 text-white rounded-md py-2 font-semibold transition-all flex items-center justify-center gap-2 hover:bg-blue-700"
+          >
+            <Clock size={16} />
+            Copy Monday Hours to All Days
+          </button>
         </motion.div>
       </div>
     </motion.div>
