@@ -72,6 +72,9 @@ const Profile = () => {
     website: string | undefined;
     gstNumber: string | undefined;
     fssaiNumber: string | undefined;
+    banners?: string[];
+    hours?: Record<string, { open: string; close: string; isOpen: boolean }>;
+    vegNonveg?: string;
   }>({
     restaurantName: undefined,
     email: undefined,
@@ -84,7 +87,7 @@ const Profile = () => {
     phone: undefined,
     website: undefined,
     gstNumber: undefined,
-    fssaiNumber: undefined,
+    fssaiNumber: undefined
   });
 
   const defaultTimes = {
@@ -139,24 +142,38 @@ const Profile = () => {
 
   // Helper to normalize restaurant data from backend
   function normalizeRestaurantData(restaurant: any) {
+    // Parse cuisines from comma-separated string if needed
+    const cuisines = typeof restaurant.cuisines === 'string' 
+      ? restaurant.cuisines.split(',').map((c: string) => c.trim())
+      : Array.isArray(restaurant.cuisines) 
+        ? restaurant.cuisines 
+        : [];
+
+    const restaurantTypeObj = restaurant.restaurantType 
+      ? { value: restaurant.restaurantType, label: restaurant.restaurantType }
+      : undefined;
+
     return {
       name: restaurant.name || '',
       email: restaurant.email || '',
       description: restaurant.description || '',
-      address: restaurant.address || '',
-      image: restaurant.image || '',
+      address: typeof restaurant.address === 'object' 
+        ? `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state} - ${restaurant.address.pincode}`
+        : restaurant.address || '',
+      image: restaurant.banners?.[0] || '',
       servingRadius: restaurant.servingRadius ?? 0,
-      cuisineTypes: restaurant.cuisineType
-        ? restaurant.cuisineType.split(',').filter((c: string) => c)
-        : [],
-      restaurantType: restaurant.restaurantType || '',
-      mobileNumber: restaurant.mobileNumber || '',
-      phone: restaurant.mobileNumber || '',
+      cuisineTypes: cuisines.map((c: string) => ({
+        value: c,
+        label: c
+      })),
+      restaurantType: restaurantTypeObj,
+      phone: restaurant.mobile || '',
       website: restaurant.website || '',
       gstNumber: restaurant.gstNumber || '',
       fssaiNumber: restaurant.fssaiNumber || '',
-      operatingHours: restaurant.operatingHours || null,
-      foodItems: restaurant.foodItems || [],
+      hours: restaurant.hours || null,
+      banners: restaurant.banners || [],
+      vegNonveg: restaurant.vegNonveg || 'both',
     };
   }
 
@@ -165,45 +182,76 @@ const Profile = () => {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        const restaurantId = localStorage.getItem('restaurantId');
-        if (!token || !restaurantId) return;
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/restaurants/${restaurantId}`, {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
+        if (!token) {
+          toast.error('Not authenticated');
+          return;
+        }
+
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/restaurants/me`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
         });
         const data = await res.json();
-        if (res.ok && data.status === 'success' && data.data) {
-          const normalizedRestaurant = normalizeRestaurantData(data.data);
-          setProfileData({
-            restaurantName: normalizedRestaurant.name,
-            email: normalizedRestaurant.email,
-            description: normalizedRestaurant.description,
-            address: normalizedRestaurant.address,
-            image: normalizedRestaurant.image,
-            servingRadius: normalizedRestaurant.servingRadius,
-            cuisineTypes: Array.isArray(normalizedRestaurant.cuisineTypes)
-              ? normalizedRestaurant.cuisineTypes
-                  .map((c: string) => cuisineOptions.find(opt => opt.value === c))
-                  .filter((v): v is { value: string; label: string } => Boolean(v))
-              : [],
-            restaurantType: restaurantTypes.find(opt => opt.value === normalizedRestaurant.restaurantType),
-            phone: normalizedRestaurant.mobileNumber || normalizedRestaurant.phone,
-            website: normalizedRestaurant.website,
-            gstNumber: normalizedRestaurant.gstNumber,
-            fssaiNumber: normalizedRestaurant.fssaiNumber,
-          });
-          if (normalizedRestaurant.operatingHours) {
-            setOperatingHours(normalizedRestaurant.operatingHours);
+
+        if (res.ok && data.success) {
+          const restaurant = data.data;
+          // Parse cuisines from comma-separated string if needed
+          const cuisines = typeof restaurant.cuisines === 'string' 
+            ? restaurant.cuisines.split(',').map((c: string) => c.trim())
+            : Array.isArray(restaurant.cuisines) 
+              ? restaurant.cuisines 
+              : [];
+
+          // Parse address if it's a string
+          let addressStr = '';
+          if (typeof restaurant.address === 'object') {
+            const { street, city, state, pincode } = restaurant.address;
+            addressStr = `${street}, ${city}, ${state} - ${pincode}`;
+          } else if (typeof restaurant.address === 'string') {
+            addressStr = restaurant.address;
           }
-          // Save normalized data to localStorage
-          localStorage.setItem('restaurant', JSON.stringify(normalizedRestaurant));
+
+          setProfileData({
+            restaurantName: restaurant.name || '',
+            email: restaurant.email || '',
+            description: restaurant.description || '',
+            address: addressStr,
+            image: restaurant.banners?.[0] || '',
+            servingRadius: restaurant.servingRadius || 0,
+            phone: restaurant.mobile || '',
+            cuisineTypes: cuisines.map((cuisine: string) => ({
+              value: cuisine,
+              label: cuisine
+            })),
+            restaurantType: restaurant.restaurantType ? {
+              value: restaurant.restaurantType,
+              label: restaurant.restaurantType
+            } : undefined,
+            vegNonveg: restaurant.vegNonveg || 'both',
+            hours: restaurant.hours || {},
+            banners: restaurant.banners || [],
+            website: restaurant.website || '',
+            gstNumber: restaurant.gstNumber || '',
+            fssaiNumber: restaurant.fssaiNumber || ''
+          });
+
+          if (restaurant.hours) {
+            setOperatingHours(restaurant.hours);
+          }
+
+          localStorage.setItem('restaurant', JSON.stringify(data.data));
+        } else {
+          throw new Error(data.message || 'Failed to fetch profile');
         }
       } catch (err) {
-        // Optionally show error
+        const error = err as Error;
+        toast.error(error.message || 'Failed to load profile');
+        console.error('Error fetching profile:', err);
       }
     };
+
     fetchProfile();
-    // eslint-disable-next-line
   }, []);
 
   // Load profile data from localStorage if user is logged in
@@ -242,15 +290,37 @@ const Profile = () => {
       const restaurantId = localStorage.getItem('restaurantId');
       if (!token) throw new Error('Not authenticated');
       // Only send allowed fields as per backend (remove password)
+      // Parse the current address if it exists
+      let addressObj = { street: '', city: '', state: '', pincode: '' };
+      if (profileData.address) {
+        const parts = profileData.address.split(',').map(p => p.trim());
+        addressObj = {
+          street: parts[0] || '',
+          city: parts[1] || '',
+          state: parts[2]?.split('-')[0].trim() || 'Gujarat',
+          pincode: parts[2]?.split('-')[1]?.trim() || '380000'
+        };
+      }
+
+      // Ensure required fields are present
+      if (!profileData.address || !profileData.cuisineTypes.length || !operatingHours) {
+        throw new Error('Address, cuisines, and operating hours are required');
+      }
+
       const updatePayload: Record<string, any> = {
         name: profileData.restaurantName,
-        email: profileData.email, // include email for update
-        address: profileData.address,
-        mobileNumber: profileData.phone, // phone is mobileNumber
+        email: profileData.email,
+        mobile: profileData.phone,
         description: profileData.description,
-        servingRadius: profileData.servingRadius,
-        cuisineType: profileData.cuisineTypes.map(c => c.value).join(','),
-        restaurantType: profileData.restaurantType ? profileData.restaurantType.value : undefined,
+        address: addressObj, // Already in JSON format
+        cuisines: profileData.cuisineTypes.map(c => c.value).join(','), // Convert to comma-separated string
+        restaurantType: profileData.restaurantType?.value,
+        website: profileData.website,
+        gstNumber: profileData.gstNumber,
+        fssaiNumber: profileData.fssaiNumber,
+        hours: operatingHours, // Already in JSON format
+        vegNonveg: profileData.vegNonveg || 'both',
+        banners: profileData.banners || [], // Required field
       };
       // Remove undefined/null fields
       Object.keys(updatePayload).forEach(key => {
@@ -297,14 +367,14 @@ const Profile = () => {
                       .map((c: string) => cuisineOptions.find(opt => opt.value === c))
                       .filter((v): v is { value: string; label: string } => Boolean(v))
                   : [],
-                restaurantType: restaurantTypes.find(opt => opt.value === normalizedRestaurant.restaurantType),
-                phone: normalizedRestaurant.mobileNumber || normalizedRestaurant.phone,
+                restaurantType: normalizedRestaurant.restaurantType,
+                phone: normalizedRestaurant.phone,
                 website: normalizedRestaurant.website,
                 gstNumber: normalizedRestaurant.gstNumber,
                 fssaiNumber: normalizedRestaurant.fssaiNumber,
               });
-              if (normalizedRestaurant.operatingHours) {
-                setOperatingHours(normalizedRestaurant.operatingHours);
+              if (normalizedRestaurant.hours) {
+                setOperatingHours(normalizedRestaurant.hours);
               }
             }
           } catch (fetchErr) {
